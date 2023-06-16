@@ -202,6 +202,7 @@ def _get_python_lib(repository_ctx, python_bin):
     if python_lib != None:
         if _is_windows(repository_ctx):
             python_lib = _norm_path(python_lib)
+        print("PYTHON_LIB_PATH is:", python_lib)
         return python_lib
     print_lib = ("<<END\n" +
                  "from __future__ import print_function\n" +
@@ -231,6 +232,7 @@ def _get_python_lib(repository_ctx, python_bin):
                  "END")
     cmd = "%s - %s" % (python_bin, print_lib)
     result = repository_ctx.execute([_get_bash_bin(repository_ctx), "-c", cmd])
+    print("PYTHON_LIB_PATH is:", result.stdout.strip("\n"))
     return result.stdout.strip("\n")
 
 def _check_python_lib(repository_ctx, python_lib):
@@ -269,6 +271,7 @@ def _get_python_version(repository_ctx, python_bin):
 def _get_python_include(repository_ctx, python_bin):
     """Gets the python include path."""
     version = _get_python_version(repository_ctx, python_bin)
+    print("python version:", version)
     result = _execute(
         repository_ctx,
         [
@@ -280,6 +283,7 @@ def _get_python_include(repository_ctx, python_bin):
         error_details = ("Is the Python binary path set up right? " +
                          "(See ./configure or " + _PYTHON_BIN_PATH + ".)"),
     )
+    print("python include:", result.stdout.splitlines()[0])
     return result.stdout.splitlines()[0]
 
 def _get_python_import_lib_name(repository_ctx, python_bin):
@@ -311,13 +315,21 @@ def _find_python_config(repository_ctx, python_bin):
         return python_config
 
     bin_dir = repository_ctx.path(python_bin).dirname
+    print("bin_dir is:", bin_dir)
+
+    print("repository_ctx.attr.python_version is:", repository_ctx.attr.python_version)
+    if repository_ctx.attr.python_version == None:
+        repository_ctx.attr.python_version = 3
+
     bin_name = "python%s-config" % repository_ctx.attr.python_version
+    print("bin_name is:", bin_name)
 
     for i in bin_dir.readdir():
         if bin_name == i.basename:
             return str(bin_dir.get_child(bin_name))
 
     symlink_base_dir = repository_ctx.path(python_bin).realpath.dirname
+    print("symlink_base_dir is:", symlink_base_dir)
     for i in symlink_base_dir.readdir():
         if bin_name == i.basename:
             return str(symlink_base_dir.get_child(bin_name))
@@ -367,6 +379,7 @@ def _create_local_python_repository(repository_ctx):
     # To embed python in C++, we need the linker and compiler flags required to embed the Python interpreter
     # See https://docs.python.org/3/extending/embedding.html#embedding-python-in-c
     python_config = _find_python_config(repository_ctx, python_bin)
+    print("python_config is:", python_config)
     python_embed_copts = ""
     python_embed_linkopts = ""
     if python_config:
@@ -388,6 +401,7 @@ def _create_local_python_repository(repository_ctx):
             [python_import_lib_src],
             [python_import_lib_name],
         )
+    print("PYTHON_EMBED_LINKOPTS is:", python_embed_linkopts)
     _tpl(repository_ctx, "BUILD", {
         "%{PYTHON_BIN_PATH}": python_bin,
         "%{PYTHON_INCLUDE_GENRULE}": python_include_rule,
